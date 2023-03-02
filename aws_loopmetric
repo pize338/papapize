@@ -1,0 +1,51 @@
+#!/bin/bash
+
+INSTANCE_ID="i-0267b615500354330"
+CW_CUSTOM_NAMESPACE="CWAgent"
+AWS_PROFILE="tg_dev"
+
+# List of metric names to retrieve
+MEM_USEDS=('mem_used_percent' 'Memory % Committed Bytes In Use')
+
+# Loop until at least one metric returns a value
+for MEM_USED in "${MEM_USEDS[@]}"; do
+    MEM_RESULT="$(aws cloudwatch get-metric-statistics \
+                --namespace $CW_CUSTOM_NAMESPACE \
+                --metric-name "$MEM_USED" \
+                --start-time $(date -u -d '30 day ago' +%Y-%m-%dT%H:%M:%SZ) \
+                --end-time $(date -u +%Y-%m-%dT%H:%M:%SZ) \
+                --period 86400 \
+                --statistics Average \
+                --dimensions Name=InstanceId,Value=$INSTANCE_ID \
+                --profile $AWS_PROFILE \
+                | grep -i average \
+                | cut -f2 -d":" \
+                | tr -d -c .0-9 \
+                | cut -b 1-5)"
+
+    # List of metric names to retrieve
+    DISK_FREES=('disk_free' 'LogicalDisk % Free Space')
+
+    # Loop until at least one metric returns a value
+    for DISK_FREE in "${DISK_FREES[@]}"; do
+        DISK_RESULT="$(aws cloudwatch get-metric-statistics \
+                    --namespace $CW_CUSTOM_NAMESPACE \
+                    --metric-name "$DISK_FREE" \
+                    --start-time $(date -u -d '30 day ago' +%Y-%m-%dT%H:%M:%SZ) \
+                    --end-time $(date -u +%Y-%m-%dT%H:%M:%SZ) \
+                    --period 86400 \
+                    --statistics Average \
+                    --dimensions Name=InstanceId,Value=$INSTANCE_ID \
+                    --profile $AWS_PROFILE \
+					| grep -i average \
+					| cut -f2 -d":" \
+					| head -n 1 \
+					| tr -d -c .0-9)"				
+
+        if [[ -n $MEM_RESULT && -n $DISK_RESULT ]]; then
+            echo "Memory $MEM_USED for instance $INSTANCE_ID is $MEM_RESULT"
+            echo "Disk $DISK_FREE for instance $INSTANCE_ID is $DISK_RESULT"
+            break 2
+        fi
+    done
+done
