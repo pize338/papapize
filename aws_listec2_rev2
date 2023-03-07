@@ -1,0 +1,42 @@
+#!/bin/bash
+
+if [ $# -ne 2 ]; then
+  echo "Usage: getec2-cpumem.sh AWSprofileName recipient_email"
+  echo "./getec2-cpumem.sh AWSprofileName recipient_email"
+  exit 1
+fi
+
+AWS_PROFILE="$1"
+recipient="$2"
+output_file="/root/listec2_ec2-instances-$AWS_PROFILE-$(date +%Y%m%d).csv"
+
+# Get instances id mem cpu write output to ec2-instances-$AWS_PROFILE.csv
+echo "instancesID,InstanceName,InstanceState,InstanceType,IPAddress,MEMORYINFO(GB),CpuCoreCount,Volume(GB)" > "$output_file"
+
+aws ec2 describe-instances \
+--query 'Reservations[*].Instances[*].[InstanceId, Tags[?Key==`Name`].Value | [0], State.Name, InstanceType, PrivateIpAddress]' \
+--output json \
+--profile "$AWS_PROFILE" | jq -r '.[][] | @csv' | tr -d '"' | while IFS=, read -r INSTANCE_ID INSTANCE_NAME INSTANCE_STATE INSTANCE_TYPE IP_ADDRESS; do
+  CPU=$(aws ec2 describe-instance-types --query "InstanceTypes[?InstanceType=='$INSTANCE_TYPE'].VCpuInfo.DefaultVCpus" --output text --profile "$AWS_PROFILE")
+  MEMORY=$(aws ec2 describe-instance-types --query "InstanceTypes[?InstanceType=='$INSTANCE_TYPE'].MemoryInfo.SizeInMiB" --output text --profile "$AWS_PROFILE")
+  VOLUME=$(aws ec2 describe-volumes --filters Name=attachment.instance-id,Values=$INSTANCE_ID --query 'Volumes[*].[Size]' --output text --profile $AWS_PROFILE | awk '{s+=$1} END {print s}')
+  # Convert memory MiB to GB
+  MEMORY_GB=$(awk "BEGIN {printf  ${MEMORY}/1024}")
+  
+  # Write the output to the file
+  echo "$INSTANCE_ID,$INSTANCE_NAME,$INSTANCE_STATE,$INSTANCE_TYPE,$IP_ADDRESS,$MEMORY_GB,$CPU,$VOLUME" >> "$output_file"
+  
+  # Print a message indicating the results were written to the file
+  echo "Instance type $INSTANCE_ID ($INSTANCE_NAME) written to $output_file"
+done
+
+# Send an email with the output file as an attachment
+subject="EC2 instance data for $AWS_PROFILE"
+body="Please find attached the output file from the getec2-cpumem.sh script."
+echo "${body}" | mailx -s "${subject}" -a "${output_file}" "${recipient}"
+
+# Remove files older than 6 months
+#find /path/to/output/directory -type f -name "ec2-instances-$AWS_PROFILE-*.csv" -mtime +180 -exec rm {} \;
+
+# Print a final message indicating the script has completed
+echo "Script completed successfully. Output written to $output_file and sent to $recipient."
