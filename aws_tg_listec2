@@ -10,12 +10,12 @@ AWS_PROFILE="$1"
 output_file="ec2-instances-$AWS_PROFILE.csv"
 
 # Get instances id mem cpu write output to ec2-instances-$AWS_PROFILE.csv
-echo "instancesID,InstanceName,InstanceState,InstanceType,IPAddress,MEMORYINFO(GB),CpuCoreCount,Volume(GB)" > "$output_file"
+echo "instancesID,InstanceName,InstanceState,Platform,InstanceType,IPAddress,MEMORYINFO(GB),CpuCoreCount,Volume(GB)" > "$output_file"
 
 aws ec2 describe-instances \
---query 'Reservations[*].Instances[*].[InstanceId, Tags[?Key==`Name`].Value | [0], State.Name, InstanceType, PrivateIpAddress]' \
+--query 'Reservations[*].Instances[*].[InstanceId, Tags[?Key==`Name`].Value | [0], State.Name, Platform, InstanceType, PrivateIpAddress]' \
 --output json \
---profile "$AWS_PROFILE" | jq -r '.[][] | @csv' | tr -d '"' | while IFS=, read -r INSTANCE_ID INSTANCE_NAME INSTANCE_STATE INSTANCE_TYPE IP_ADDRESS; do
+--profile "$AWS_PROFILE" | jq -r '.[][] | @csv' | tr -d '"' | while IFS=, read -r INSTANCE_ID INSTANCE_NAME INSTANCE_STATE PLATFORM INSTANCE_TYPE IP_ADDRESS; do
   CPU=$(aws ec2 describe-instance-types --query "InstanceTypes[?InstanceType=='$INSTANCE_TYPE'].VCpuInfo.DefaultVCpus" --output text --profile "$AWS_PROFILE")
   MEMORY=$(aws ec2 describe-instance-types --query "InstanceTypes[?InstanceType=='$INSTANCE_TYPE'].MemoryInfo.SizeInMiB" --output text --profile "$AWS_PROFILE")
   VOLUME=$(aws ec2 describe-volumes --filters Name=attachment.instance-id,Values=$INSTANCE_ID --query 'Volumes[*].[Size]' --output text --profile $AWS_PROFILE | awk '{s+=$1} END {print s}')
@@ -23,7 +23,7 @@ aws ec2 describe-instances \
   MEMORY_GB=$(awk "BEGIN {printf  ${MEMORY}/1024}")
   
   # Write the output to the file
-  echo "$INSTANCE_ID,$INSTANCE_NAME,$INSTANCE_STATE,$INSTANCE_TYPE,$IP_ADDRESS,$MEMORY_GB,$CPU,$VOLUME" >> "$output_file"
+  echo "$INSTANCE_ID,$INSTANCE_NAME,$INSTANCE_STATE,$PLATFORM,$INSTANCE_TYPE,$IP_ADDRESS,$MEMORY_GB,$CPU,$VOLUME" >> "$output_file"
   
   # Print a message indicating the results were written to the file
   echo "Instance type $INSTANCE_ID ($INSTANCE_NAME) written to $output_file"
