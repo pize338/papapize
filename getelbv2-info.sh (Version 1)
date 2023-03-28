@@ -1,0 +1,28 @@
+#!/bin/bash
+
+if [ $# -ne 1 ]; then
+  echo "Usage: getelbv2-info.sh AWSprofileName "
+  echo "./getelbv2-info.sh AWSprofileName"
+  exit 1
+fi
+
+AWS_PROFILE="$1"
+output_file="elbv2-instances-$AWS_PROFILE.csv"
+
+# Get load balancer info and write output to elbv2-instances-$AWS_PROFILE.csv
+echo "LoadBalancerName,Type,DNSName,Scheme,VpcId,StateCode" > "$output_file"
+
+aws elbv2 describe-load-balancers \
+--query 'LoadBalancers[*].[LoadBalancerName,Type,DNSName,Scheme,VpcId,State.Code]' \
+--output json \
+--profile "$AWS_PROFILE" | jq -r '.[] | @csv' | tr -d '"' | while IFS=, read -r LB_NAME LB_TYPE LB_DNS_NAME LB_SCHEME LB_VPC_ID LB_STATE_CODE; do
+
+  # Write the output to the file
+  echo "$LB_NAME,$LB_TYPE,$LB_DNS_NAME,$LB_SCHEME,$LB_VPC_ID,$LB_STATE_CODE" >> "$output_file"
+
+  # Print a message indicating the results were written to the file
+  echo "Load balancer $LB_NAME written to $output_file"
+done
+
+# Print a final message indicating the script has completed
+echo "Script completed successfully. Output written to $output_file"
