@@ -1,0 +1,38 @@
+#!/bin/bash
+
+if [ $# -ne 1 ]; then
+  echo "Usage: get-ebs-info.sh AWSprofileName "
+  echo "./get-ebs-info.sh AWSprofileName"
+  exit 1
+fi
+
+AWS_PROFILE="$1"
+output_file="ebs-volumes-$AWS_PROFILE.csv"
+
+# Get EBS volume info and write output to ebs-volumes-$AWS_PROFILE.csv
+echo "VolumeId,Name,Size(GiB),VolumeType,Iops,VolumeState,AvailabilityZone,InstanceId,AttachmentState,InstanceName" > "$output_file"
+
+aws ec2 describe-volumes \
+--query 'Volumes[*].[VolumeId,Tags[?Key==`Name`]|[0].Value,Size,VolumeType,Iops,State,AvailabilityZone,Attachments[0].InstanceId,Attachments[0].State]' \
+--output json \
+--profile "$AWS_PROFILE" | jq -r '.[] | [.[] | tostring] | @csv' | while read -r row; do
+
+  # Extract the instance ID from the row
+  instance_id=$(echo "$row" | awk -F ',' '{print $8}'| tr -d '"')
+
+  # Get the instance name based on the instance ID
+  instance_name=$(aws ec2 describe-instances --instance-ids "$instance_id" --query 'Reservations[*].Instances[*].[Tags[?Key==`Name`].Value]' --output text --profile "$AWS_PROFILE")
+
+  # Append the instance name to the row
+  row="$row,$instance_name"
+
+  # Write the output to the file
+  echo "$row" >> "$output_file"
+
+  # Print a message indicating the results were written to the file
+  vol_id=$(echo "$row" | awk -F ',' '{print $1}')
+  echo "EBS volume $vol_id written to $output_file"
+done
+
+# Print a final message indicating the script has completed
+echo "Script completed successfully. Output written to $output_file"
