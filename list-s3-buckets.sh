@@ -7,7 +7,7 @@ if [ $# -ne 1 ]; then
 fi
 
 AWS_PROFILE="$1"
-output_file="buckets-$AWS_PROFILE.csv"
+output_file="s3-buckets-$AWS_PROFILE.csv"
 
 # Get bucket list and write output to buckets-$AWS_PROFILE.csv
 echo "BucketName,CreatedDate" > "$output_file"
