@@ -7,7 +7,7 @@ if [ $# -ne 1 ]; then
 fi
 
 AWS_PROFILE="$1"
-output_file="filesystems-$AWS_PROFILE.csv"
+output_file="fsx-filesystems-$AWS_PROFILE.csv"
 
 # Get filesystem list and write output to filesystems-$AWS_PROFILE.csv
 echo "FileSystemId,FileSystemType,DeploymentType,StorageType,StorageCapacityGiB" > "$output_file"
