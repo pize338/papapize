@@ -7,7 +7,7 @@ if [ $# -ne 1 ]; then
 fi
 
 AWS_PROFILE="$1"
-output_file="backups-$AWS_PROFILE.csv"
+output_file="fsx-backups-$AWS_PROFILE.csv"
 
 # Get backup list and write output to backups-$AWS_PROFILE.csv
 echo "BackupId,Type" > "$output_file"
