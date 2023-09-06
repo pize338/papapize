@@ -49,16 +49,16 @@ def send_email(sender, receivers, subject, message, smtp_server, smtp_port, atta
         print(ex)
 
 # Set your email details
-sender = 'aws_api@siscloudservices.com'
-receivers = ['chompoonik@sisthai.com']
-subject = 'Alert AWS Test'
+sender = 'aws_sisthai01_alert@siscloudservices.com'
+receivers = ['aws.masterpayer01@sisthai.com','chompoonik@sisthai.com']
+subject = '[Action-Require] Alert cost anomaly for sisthai01'
 smtp_server = '10.2.120.14'
 smtp_port = 25
 
 # Specify the columns
 column_names = ['Account ID','Customer Name','Date cost (USD)','Avg cost 30 days (USD)']
 # Specify the filename
-output_filename = f'C:/Users/chompoonik/Desktop/Report_cost over average.csv'
+output_filename = f'/home/api-vm/aws_cost_report/Report_cost over average.csv'
 
 # Calculate the start and end dates
 yesterday = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
@@ -204,9 +204,9 @@ for account_id in x.keys():
     cost_avg = y[account_id]['amount']
     time = x[account_id]['time']
     cus_name = x[account_id]['description']
-    if account_id in y and cost_now > cost_avg and cost_now > 0.01 :
+    if account_id in y and cost_now > (cost_avg*2) and cost_now > 5 :
         cost_nows.append(f"{cost_now:.2f}")
-        cost_avgs.append(f"{cost_avg:.2f}")
+        cost_avgs.append(f"{(cost_avg*2):.2f}")
         account_ids.append(account_id)
         cus_names.append(cus_name)
         write_to_csv(time,account_ids,cus_names,cost_nows,cost_avgs,output_filename,column_names)
